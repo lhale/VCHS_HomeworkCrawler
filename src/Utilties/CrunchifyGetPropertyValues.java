@@ -16,7 +16,7 @@ import java.util.Properties;
 public class CrunchifyGetPropertyValues {
 	String result = "";
 	InputStream inputStream;
- 
+
 	public ConfigProperties getPropValues() throws IOException {
 		ConfigProperties config_properties = null;
 		

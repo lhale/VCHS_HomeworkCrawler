@@ -42,7 +42,7 @@ public class ConfigProperties {
 		this.spreadsheet_name = spreadsheet_name;
 		this.worksheet_caption = worksheet_caption;
 	}
-	
+
 	public void extract_class_links(Properties props) {
 		StringTokenizer st = new StringTokenizer(classes, " ");	// Ref: http://crunchify.com/java-stringtokenizer-and-string-split-example/
 		class_links = new HashMap<String, String>();

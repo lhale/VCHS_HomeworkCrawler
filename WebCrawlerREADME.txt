@@ -1,5 +1,5 @@
     This project uses the following solution technologies:
-1) Selenium ChromeDriver 
+1) Selenium ChromeDriver
 2) Google Spreadsheet APIs
    (Set up for new Google API project @ https://developers.google.com/sheets/api/quickstart/java)
 	Application = other, Name = VCHS_Spreadsheet

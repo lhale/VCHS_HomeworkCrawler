@@ -429,7 +429,7 @@ public class VCHS_HomeworkCrawler3 {
 							    		 * immediately invoke a bash script that invokes the fill_spreadsheet.py Python program (residing in another Git project, aka Google_Spreadsheet_updater)
 							    		 * The bash adapter script has to do some input field separator magic (crickey) to have the Pyhton script ingest all arguments correctly.
 							    		 * TODO: 1) Figure out the OS and adjust the command accordingly
-							    		 * 		2) Add a flag check here for command execution debugging 
+							    		 * 		2) Add a flag check here for command execution debugging
 							    		 */
 										String python_command = "python " + spreadsheet_updater_loc + "/fill_spreadsheet.py " + config_properties.getSpreadsheet_name() + " " + google_worksheetname + " " + worksheet_line;
 										// String bin_bash = "C:\\Applications\\Git\\bin\\bash.exe ";
