@@ -16,23 +16,29 @@ public class ConfigProperties {
 	private String login_destination;
 	private String username;	// Google drive account username
 	private String password;
+	private Boolean fill_spreadsheet_run;
 	private String fill_spreadsheet_location;
+	private String getopts_location;
 	private String webdriver_chrome_driver;
 	private String classes;	// the student's classes we care about
 	private HashMap<String, String> class_links;
+	private String shell;
 	private String spreadsheet_name;
 	private String worksheet_caption;
 	
 	public ConfigProperties(String login_destination, String username,
-			String password, String fill_spreadsheet_location,
-			String webdriver_chrome_driver, String classes, String spreadsheet_name, String worksheet_caption) {
+			String password, Boolean fill_spreadsheet_run, String fill_spreadsheet_location, String getopts_location,
+			String webdriver_chrome_driver, String classes, String shell, String spreadsheet_name, String worksheet_caption) {
 		super();
 		this.login_destination = login_destination;
 		this.username = username;
 		this.password = password;
+		this.fill_spreadsheet_run = fill_spreadsheet_run;
 		this.fill_spreadsheet_location = fill_spreadsheet_location;
+		this.getopts_location = getopts_location;
 		this.webdriver_chrome_driver = webdriver_chrome_driver;
 		this.classes = classes;
+		this.shell = shell;
 		this.spreadsheet_name = spreadsheet_name;
 		this.worksheet_caption = worksheet_caption;
 	}
@@ -52,16 +58,26 @@ public class ConfigProperties {
 		return login_destination;
 	}
 
+	// TODO decrypt this property
 	public String getUsername() {
 		return username;
 	}
 
+	// TODO decrypt this property
 	public String getPassword() {
 		return password;
 	}
 
+	public Boolean getFill_spreadsheet_run() {
+		return fill_spreadsheet_run;
+	}
+
 	public String getFill_spreadsheet_location() {
 		return fill_spreadsheet_location;
+	}
+
+	public String getGetopts_location() {
+		return getopts_location;
 	}
 
 	public String getWebdriver_chrome_driver() {
@@ -82,6 +98,10 @@ public class ConfigProperties {
 
 	public String getSpreadsheet_name() {
 		return spreadsheet_name;
+	}
+
+	public String getShell() {
+		return shell;
 	}
 }
 

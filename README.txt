@@ -1,7 +1,7 @@
    VCHS_HomeworkCrawler project uses Selenium to automate the process of signing in to the
 vcs.learn student portal and walks through the student's courses to collect up the current
 homework assignments due for each class. The results are dumped to a CSV spreadsheet, outputted on
-the standard output, and if elected, deposits the classwork assingments up to a Google
+the standard output, and if elected, deposits the classwork assignments up to a Google
 Spreadsheet by communicating externally with Google_Spreadsheet_Updater, a Python program
 (which resides up on GitHub, too). 
 
@@ -37,7 +37,7 @@ Caused by: java.lang.ClassNotFoundException: org.openqa.selenium.NoSuchElementEx
         right click VCHS_HomeworkCrawler->export->runnable jar file, export required libs radio button.
         
         to run:
-        java -cp VCHS_HomeworkCrawler.jar ChromeBrowser.VCHS_HomeworkCrawler2 all or list of classes
+        java -cp VCHS_HomeworkCrawler.jar ChromeBrowser.VCHS_HomeworkCrawler3 all or list of classes
         
         
         

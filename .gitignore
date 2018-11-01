@@ -30,4 +30,5 @@ resources/My Project-552ecd170323.json
 resources/data_store_2
 target
 *.csv
-*.jar
+.project
+.classpath

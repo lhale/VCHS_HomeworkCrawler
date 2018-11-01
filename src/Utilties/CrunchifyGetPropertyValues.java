@@ -40,15 +40,17 @@ public class CrunchifyGetPropertyValues {
 			props.load(inputStream);
  
 			Date datetime = new Date(System.currentTimeMillis());
+			Boolean fill_spreadsheet_run = (props.getProperty("fill_spreadsheet_run").contains("yes") ? true : false);
 			config_properties = new ConfigProperties(props.getProperty("login_destination"),
-					props.getProperty("username"), props.getProperty("password"), 
-					props.getProperty("fill_spreadsheet_location"), props.getProperty("webdriver.chrome.driver"),
-					props.getProperty("classes"), props.getProperty("spreadsheet_name"), props.getProperty("worksheet_caption"));
+					props.getProperty("username"), props.getProperty("password"), fill_spreadsheet_run,
+					props.getProperty("fill_spreadsheet_location"), props.getProperty("getopts_location"), props.getProperty("webdriver.chrome.driver"),
+					props.getProperty("classes"), props.getProperty("shell"), props.getProperty("spreadsheet_name"), props.getProperty("worksheet_caption"));
 
 			config_properties.extract_class_links(props);
- 
+			
+			String fill_spreadsheet = (fill_spreadsheet_run ? "Spreadsheet updater located at " + config_properties.getFill_spreadsheet_location() : "Spreadsheet updater turned off");
 			result = "Classes: " + config_properties.getClasses() + 
-						"\nSpreadsheet updater located at " + config_properties.getFill_spreadsheet_location() + 
+						"\n" + fill_spreadsheet + 
 						"\nLearn VCS URL: " + config_properties.getLogin_destination();
 			System.out.println(result + "\nProgram Ran on " + datetime + " by user=" + System.getProperty("user.name"));
 		} catch (Exception e) {

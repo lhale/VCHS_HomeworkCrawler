@@ -58,17 +58,18 @@ import BrowserJavascript.JQueryLoader;
  
  *	Major TODO items:
  *		1) Genericize this program for all VCHS students (possibly host a server running this code or integrate into Powerschool)
- *		2) Read from a config file having the following info:
- *			a) location of the a student's secret Google credentials JSON file,
- *			b) class top links discovery (Need process & mechanism for transitioning to new semesters)
- *			c) student's sign on credentials (l8r: pop up a sign-on window to grab credentials [more secure])
- *		3) Given any studen't credentials, a first-pass of the crawler will figure out student's classes, 
+ *		2) The Google APIs have quotas we're bumping up against - see https://developers.google.com/analytics/devguides/config/mgmt/v3/limits-quotas
+ *			(I beieve the rate is the main violater, so either throttle the crawler calling fill_spreadsheet or figure out if batching the whole worksheet would work)
+ *		3) Add smarts to discern weekends, holidays, holiday breaks and in-service days or equivalent off days
+ *		4) Given any studen't credentials, a first-pass of the crawler will figure out student's classes, 
  *			grab the top link to each class and write them out to the config file. This is important b/c each teacher
  *			is just starting to put in class homework at the start of each semester, which may have different classes from the previous semester.
- *		4) Close out the Chrome browser after program is complete (or provide a confirm window at the end, in case user wants to keep it open)
- *		5) Transform all println's into log4j (or equivalent) logging (either to console or log file)
- *		6) Convert this program into a web application, perhaps even integrate into VCHS's learn.vcs web infrastructure using its credential session.
+ *		5) Close out the Chrome browser after program is complete (or provide a confirm window at the end, in case user wants to keep it open)
+ *		6) Transform all println's into log4j (or equivalent) logging (either to console or log file)
+ *		7) Convert this program into a web application, perhaps even integrate into VCHS's learn.vcs web infrastructure using its credential session.
  *			Also, all config.properties would become user preferences residing online
+ *		8) A system installer that installs this application, JVM (if needed), Python 2.x (if needed) and the Google Spreadsheet Updater application.
+ *			(This would be much easier if #6 above gets implemented)
  */
 
 /**
@@ -206,12 +207,14 @@ public class VCHS_HomeworkCrawler3 {
 
 		// Create the CSV template file used to dump all course information
 		FileOutputStream spreadsheet_fos = createCSV_OutputStream(template_filename, config_properties);
+		Boolean call_python = config_properties.getFill_spreadsheet_run();
 		if ( spreadsheet_fos == null) {
 			System.err.println("Can't create CSV file " + template_filename);
 			System.exit(1);
 		}
 		
 		String spreadsheet_updater_loc = config_properties.getFill_spreadsheet_location();
+		String getopts_loc = config_properties.getGetopts_location();
 		// Courses tested: algebra chemistry history (some A/B dups need to be filtered out), english (redundant A/B day items), mandarin, 3D
 	    for (String course : args) {
 
@@ -320,106 +323,156 @@ public class VCHS_HomeworkCrawler3 {
 						<li><span style="font-family: 'times new roman', times, serif;"><strong><span style="font-size: large;">Chapter 1-2 test 09/13</span></strong></span></li>
 					</ol>
 				 */
-				String tag_name = (((String) course).toLowerCase().contains(MANDARIN) ? "p" : "h3");	// Mandarin HAS to be different, of course
-				List <WebElement> h3_tag_elements = driver.findElements(By.tagName(tag_name));
-				WebElement preface = null;	// Start each course's day item with no indents, which are used to highlight a homework preface (i.e. history below)
-				for ( WebElement web_elem : h3_tag_elements) {
-					String web_elem_html = web_elem.getAttribute("innerHTML");
-					if (web_elem_html.toLowerCase().contains(HOMEWORK)) {
-						// The next sibling tag contains the homework items
-						WebElement homework_list = web_elem.findElement(By.xpath("following-sibling::*[1]"));	// <ul> or <ol>
-						List <WebElement> homework_items = homework_list.findElements(By.tagName("li"));
-						System.out.println((course_date == UNKNOWN ? template_filename : course_date) + " Homework for " + course + ":");
-						int item_number = 1;
-						for (WebElement homework_item : homework_items) {
-							String web_elem_homework = homework_item.getAttribute("innerHTML");
-							try {
-								if((preface = homework_item.findElement(By.tagName("li"))) != null) {
-//									if ( ! course.contains(HISTORY))	// This might be a preface to a bunch of enumerated items below it
-										continue;	// Pass over the nested <ul><li>...<ul><li> nonsense found in courses like history and let it go through the parsing process below.
-//									web_elem_homework = preface.getAttribute("innerHTML");
-								} else {
-								WebElement possible_inner_span_element = homework_item.findElement(By.tagName("span"));
-		//						  if (possible_inner_span_element != null ) {	// Strip it off (it's used for optional color decoration)
-									web_elem_homework = possible_inner_span_element.getAttribute("innerHTML");
-									// Strip off the <strong> decoration if present
-									WebElement possible_stronged_span_element = null;
-									if ( (possible_stronged_span_element = possible_inner_span_element.findElement(By.tagName("strong"))) != null) {
-										// There is also a possible <span><strong><span> - EGADS
-										WebElement possible_spanned_stronged_span_element = null;
-										if ( (possible_spanned_stronged_span_element = possible_stronged_span_element.findElement(By.tagName("span"))) != null) {
-											web_elem_homework = possible_spanned_stronged_span_element.getAttribute("innerHTML");
-										} else
-											web_elem_homework = possible_stronged_span_element.getAttribute("innerHTML");
-									}
-		//						  }
-								}
+				// Sooo - it turns out that some homework sections are <h3> bounded while others are <p> bounded, so gotta check both
+				String [] tag_enclosures = new String [] {"h3", "p"};	// Courses like Mandarin, Chem & Algebra appear to use <p> now (sheesh)
+				for ( String tag_name : tag_enclosures) {
+					List <WebElement> enclosure_tag_elements = driver.findElements(By.tagName(tag_name));
+					WebElement preface = null;	// Start each course's day item with no indents, which are used to highlight a homework preface (i.e. history below)
+					Boolean found_course_enclosure = false;
+					for ( WebElement web_elem : enclosure_tag_elements) {
+						String web_elem_html = web_elem.getAttribute("innerHTML");
+						if (web_elem_html.toLowerCase().contains(HOMEWORK)) {
+							found_course_enclosure = true;
+							// The next sibling tag contains the homework items
+							WebElement homework_list = web_elem.findElement(By.xpath("following-sibling::*[1]"));	// <ul> or <ol>
+							List <WebElement> homework_items = homework_list.findElements(By.tagName("li"));
+							if ( homework_items.size() > 0)
+								System.out.println((course_date == UNKNOWN ? template_filename : course_date) + " Homework for " + course + ":");
+							else {	// Uh-oh - perhaps the homework items are outside of (or sibling to) the homework header (teachers are allowed this formatting transgression - ugh)
+								List <WebElement> probable_homework_items = new ArrayList<WebElement>();
+								// Walk backwards to the homework header's ul and then walk down its siblings (UGH - later)
 								
-							} catch (org.openqa.selenium.NoSuchElementException nsee) {
-								// OK - so it doesn't have a inner <span> - fine ...
+								// Observed case are successive ul's after the HOMEWORK header (some of which ae empty (so check for that)
+								try {
+									WebElement possible_homework_list = web_elem;
+									while (( possible_homework_list = possible_homework_list.findElement(By.xpath("following-sibling::*"))) != null) {	// Could be any tag
+										// WebElement parent = (WebElement) ((JavascriptExecutor) driver).executeScript( "return arguments[0].parentNode;", web_elem);
+										if (possible_homework_list.getTagName().equals("ul")) {
+											try {
+												// TODO: Count the # of ul's and prepend a 4-space indent for each ul
+												// TODO2: Count the # of homework items and attempt to somehow reduce the # to mitigate Google API quotas (globbing?)
+												homework_items = possible_homework_list.findElements(By.tagName("li"));
+												probable_homework_items.addAll(homework_items);
+											} catch (org.openqa.selenium.NoSuchElementException nsee) {
+												// Weird to have a <ul> not contain <li>'s, but it happens ...
+												System.out.println("False homework list - contents: " + possible_homework_list.getAttribute("innerHTML"));
+											}
+										} else {
+											System.out.println("Homework section list - contents: " + possible_homework_list.getAttribute("innerHTML"));
+											continue;	// next sibling (hopefully ul)
+										}
+									}
+								} catch (org.openqa.selenium.NoSuchElementException nsee) {
+									// End of the line - no more siblings
+								}
+								if ( probable_homework_items.size() == 0) {
+									System.out.println(" Homework for " + course + " can't be located - sorry");	// TODO: Maybe add a homework row in the worksheet saying this
+									continue;
+								} else
+									homework_items = probable_homework_items;
 							}
-							// TODO: Filter out all the &nbsp; 's
-							if (web_elem_homework.length() > 0 && web_elem_homework.contains("</")) {	// Previous selective filtering may not have purged all the HTML tags, so let's do that now 
-								web_elem_homework = web_elem_homework.replaceAll("\\<.*?>","");	// Ref: https://stackoverflow.com/questions/240546/remove-html-tags-from-a-string
-							}
-							if (web_elem_homework.length() > 0 && web_elem_homework.contains(",")) {	// Gotta replace those commas before it's dumped into the CSV file
-								web_elem_homework = web_elem_homework.replaceAll(",", ";");	// .replace didn't replace all
-							}
-							if (web_elem_homework.length() > 0 && web_elem_homework.contains("&nbsp;")) {	// Gotta replace those commas before it's dumped into the CSV file
-								web_elem_homework = web_elem_homework.replaceAll("&nbsp;", " ");	// .replace didn't replace all
-							}
-							web_elem_homework = web_elem_homework.trim();
-							// See if this homework was previously 'seen'
-							Integer home_work_hash = (course + '_' + web_elem_homework).hashCode();
-							if ( homeworkLookup.containsKey(home_work_hash)) {
-								System.out.println("Duplicate " + course + " homework found (" + web_elem_homework + ')');
-								continue;
-							}
-							homeworkLookup.put(home_work_hash, web_elem_homework);
-							try {
-								String indent = (preface != null & item_number > 1 ? "    " : "");
-								String worksheet_line = new String("\n" + course + "," + (course_date == UNKNOWN ? template_filename : course_date) + "," + indent + web_elem_homework + "," +   "HW Due Date" + "," + "," + "," + "Not submitted");
-								spreadsheet_fos.write(worksheet_line.getBytes());
-					    		/* Start spreadsheet updater support. Because JAVA can only execute a DOS system command, have it
-					    		 * immediately invoke a bash script that invokes the fill_spreadsheet.py Python program (residing in another Git project, aka Google_Spreadsheet_updater)
-					    		 * The bash adapter script has to do some input field separator magic (crickey) to have the Pyhton script ingest all arguments correctly.
-					    		 * TODO: 1) Figure out the OS and adjust the command accordingly
-					    		 * 		2) Add a flag check here for command execution debugging 
-					    		 */
-								String python_command = "python " + spreadsheet_updater_loc + "/fill_spreadsheet.py " + config_properties.getSpreadsheet_name() + " " + google_worksheetname + " " + worksheet_line;
-								String bin_bash = "C:\\Applications\\Git\\bin\\bash.exe ";
-								String python_adapter_command = bin_bash + "./runSpreadsheetUpdater.sh python \"" + spreadsheet_updater_loc + "/fill_spreadsheet.py\" \"" + config_properties.getSpreadsheet_name() + "\" \"" + google_worksheetname + "\" \"" + worksheet_line + "\"";
-				    			System.out.println(">>> " + python_adapter_command);
-				    			Process p = Runtime.getRuntime().exec(python_adapter_command);
-				    			p.waitFor();
-				    			BufferedReader stdInput = new BufferedReader(new 
-				    	                 InputStreamReader(p.getInputStream()));
-				    			String s;
-				                while ((s = stdInput.readLine()) != null) {
-				                    System.out.println(">>> " + s);
-				                }
-				            /* */
-							} catch (IOException e) {
-								System.err.println("ERROR: IOException");
-								e.printStackTrace();
-								System.exit(1);
-							} catch (InterruptedException e) {
-								System.err.println("ERROR: InterruptedException");
-								e.printStackTrace();
-							}
-						/* STOPPED (Con't)
-						 * catch (InterruptedException e) {	// p.waitFor
-								// TODO Auto-generated catch block
-								e.printStackTrace();
-								System.exit(1);
-							}
-						*/
-							System.out.println(item_number + ") " + web_elem_homework);
-							item_number++;
-						}	// for homework items
+							int item_number = 1;
+							for (WebElement homework_item : homework_items) {
+								String web_elem_homework = homework_item.getAttribute("innerHTML");
+								try {
+									if((preface = homework_item.findElement(By.tagName("li"))) != null) {
+	//									if ( ! course.contains(HISTORY))	// This might be a preface to a bunch of enumerated items below it
+											continue;	// Pass over the nested <ul><li>...<ul><li> nonsense found in courses like history and let it go through the parsing process below.
+	//									web_elem_homework = preface.getAttribute("innerHTML");
+									} else {
+									WebElement possible_inner_span_element = homework_item.findElement(By.tagName("span"));
+			//						  if (possible_inner_span_element != null ) {	// Strip it off (it's used for optional color decoration)
+										web_elem_homework = possible_inner_span_element.getAttribute("innerHTML");
+										// Strip off the <strong> decoration if present
+										WebElement possible_stronged_span_element = null;
+										if ( (possible_stronged_span_element = possible_inner_span_element.findElement(By.tagName("strong"))) != null) {
+											// There is also a possible <span><strong><span> - EGADS
+											WebElement possible_spanned_stronged_span_element = null;
+											if ( (possible_spanned_stronged_span_element = possible_stronged_span_element.findElement(By.tagName("span"))) != null) {
+												web_elem_homework = possible_spanned_stronged_span_element.getAttribute("innerHTML");
+											} else
+												web_elem_homework = possible_stronged_span_element.getAttribute("innerHTML");
+										}
+			//						  }
+									}
+								} catch (org.openqa.selenium.NoSuchElementException nsee) {
+									// OK - so it doesn't have a inner <span> - fine ...
+								}
+								// TODO: Filter out all the &nbsp; 's and 8-bit unicode characters (discovered in algebra [highly suspect copy/paste from somewhere else by teacher  ] - ugh)
+								if (web_elem_homework.length() > 0 && web_elem_homework.contains("</")) {	// Previous selective filtering may not have purged all the HTML tags, so let's do that now 
+									web_elem_homework = web_elem_homework.replaceAll("\\<.*?>","");	// Ref: https://stackoverflow.com/questions/240546/remove-html-tags-from-a-string
+								}
+								if (web_elem_homework.length() > 0 && web_elem_homework.contains(",")) {	// Gotta replace those commas before it's dumped into the CSV file
+									web_elem_homework = web_elem_homework.replaceAll(",", ";");	// .replace didn't replace all
+								}
+								if (web_elem_homework.length() > 0 && web_elem_homework.contains("\"")) {	// Gotta replace those commas before it's dumped into the CSV file
+									web_elem_homework = web_elem_homework.replaceAll("\"", "'");	// .replace didn't replace all
+								}
+								if (web_elem_homework.length() > 0 && web_elem_homework.contains("&nbsp;")) {	// Gotta replace those double quotes before it's dumped into the CSV file
+									web_elem_homework = web_elem_homework.replaceAll("&nbsp;", " ");	// .replace didn't replace all
+								}
+								web_elem_homework = web_elem_homework.trim();
+								web_elem_homework = unicode_strip(web_elem_homework);	// rare, but it is happening (EGADS)
+								// See if this homework was previously 'seen'
+								Integer home_work_hash = (course + '_' + web_elem_homework).hashCode();
+								if ( homeworkLookup.containsKey(home_work_hash)) {
+									System.out.println("Duplicate " + course + " homework found (" + web_elem_homework + ')');
+									continue;
+								}
+								homeworkLookup.put(home_work_hash, web_elem_homework);
+								if ( call_python == true) {
+									try {
+										String indent = (preface != null & item_number > 1 ? "    " : "");
+										String worksheet_line = new String(course + "," + (course_date == UNKNOWN ? template_filename : course_date) + "," + indent + web_elem_homework + "," +   "HW Due Date" + "," + "," + "Not submitted");
+										spreadsheet_fos.write(worksheet_line.getBytes());
+							    		/* Start spreadsheet updater support. Because JAVA can only execute a DOS system command, have it
+							    		 * immediately invoke a bash script that invokes the fill_spreadsheet.py Python program (residing in another Git project, aka Google_Spreadsheet_updater)
+							    		 * The bash adapter script has to do some input field separator magic (crickey) to have the Pyhton script ingest all arguments correctly.
+							    		 * TODO: 1) Figure out the OS and adjust the command accordingly
+							    		 * 		2) Add a flag check here for command execution debugging 
+							    		 */
+										String python_command = "python " + spreadsheet_updater_loc + "/fill_spreadsheet.py " + config_properties.getSpreadsheet_name() + " " + google_worksheetname + " " + worksheet_line;
+										// String bin_bash = "C:\\Applications\\Git\\bin\\bash.exe ";
+										String bin_bash = config_properties.getShell();
+										// Run bash adapter and directly call Python:
+										String python_adapter_command = bin_bash + " ./runSpreadsheetUpdater.sh python \"" + spreadsheet_updater_loc + "/fill_spreadsheet.py\" \"" + config_properties.getSpreadsheet_name() + "\" \"" + google_worksheetname + "\" \"" + worksheet_line + "\"";
+										// Have runSprdShtUpdater invoke getopts
+										python_adapter_command = bin_bash + " ./runSpreadsheetUpdater.sh python \"" + getopts_loc + "\" \"" + config_properties.getSpreadsheet_name() + "\" \"" + google_worksheetname + "\" \"" + worksheet_line + "\"";
+						    			System.out.println(">>> " + python_adapter_command);
+						    			Process p = Runtime.getRuntime().exec(python_adapter_command);
+						    			p.waitFor();
+										/* TODO - maybe add this handler later
+										 * catch (InterruptedException e) {	// p.waitFor
+												// TODO Auto-generated catch block
+												e.printStackTrace();
+												System.exit(1);
+											}
+										*/
+						    			BufferedReader stdInput = new BufferedReader(new 
+						    	                 InputStreamReader(p.getInputStream()));
+						    			String s;
+						                while ((s = stdInput.readLine()) != null) {
+						                    System.out.println(">>> " + s);	// Show the output of the cmd line executable
+						                }
+									} catch (IOException e) {
+										System.err.println("ERROR: IOException");
+										e.printStackTrace();
+										System.exit(1);
+									} catch (InterruptedException e) {
+										System.err.println("ERROR: InterruptedException");
+										e.printStackTrace();
+									}
+								}
+					            /* */
+								System.out.println(item_number + ") " + web_elem_homework);
+								item_number++;
+							}	// for homework items
+							break;
+						}	// fi: homework(s) for course on day found
+					}	// for homework page sections
+					if ( found_course_enclosure == true)
 						break;
-					}
-				}	// for homework page sections
+				}	// for tag_enclosures
 				if ( navigate_back == true)
 					driver.navigate().back();	// Gotta get back to the selectable day(s) panel page
 				else
@@ -508,7 +561,7 @@ public class VCHS_HomeworkCrawler3 {
 			System.err.println("checkMatch WARN: single_char_day set to 0 (no such day #) for " + short_month_str + " " + target_day_str);
 		}
 		for ( int i=0; i < 2; i++) {
-// STOPPED HERE - it's matching October 5 for October 15
+// TODO - BUG - it's matching October 5 for October 15
 //			single_char_day = target_day_str.substring(1);
 			String month_str = (i == 0 ? long_month_str : short_month_str);
 			if (web_elem_html.contains(month_str + " " + single_char_day + "/") ||
@@ -571,6 +624,13 @@ public class VCHS_HomeworkCrawler3 {
 	
 	static public boolean elementHasClass(WebElement element, String class_name) {
 	    return element.getAttribute("class").contains(class_name);
+	}
+	
+	// Something is throwing in some 8-bit characters, so strip them down to a 7 bit one so that
+	// it's human and machine-readable
+	static String unicode_strip(String web_elem_homework_string) {
+		
+		return web_elem_homework_string;
 	}
 }
 

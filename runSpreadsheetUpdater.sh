@@ -5,7 +5,7 @@
 
 # python "C:\Applications\MyEclipse2015CI\Workspaces\Google_Spreadsheet_Updater/fill_spreadsheet.py" Tom_Spreadsheet Jan_14 english,January_11,Brainstorming Handout,HW Due Date,,,Not submitted
 
-debug=false
+debug=true
 
 if [ "$#" -le 4 ]; then
     echo "Syntax: " $0 python "<file path of Python executable>" "<Google spreadsheet name>"  "<Google worksheet name>" "<worksheet row information in CSV format>"
@@ -25,11 +25,7 @@ worksheet_name=$4
 
 
 cd  $dir_target
-
-if [ $debug = true]; then
-    echo CWD=`pwd`
-fi
-    
+   
 # Move arg pointer to where the CSV worksheet row info lives
 shift 4
 row_info=$1
@@ -37,8 +33,21 @@ row_info=$1
 # This in turn will affect the bash to split args passed to python into separate args
 IFS=','
 set -f
-python $exec_target $spreadsheet_name $worksheet_name $row_info
+
+if [ $debug = true ]; then
+    echo CWD=`pwd`
+    set -vx	# This actually doesn't output anything when called from Java
+fi
+results=`python $exec_target $spreadsheet_name $worksheet_name $row_info`
+if [ $debug = true ]; then
+    echo RESULT=$?
+    echo CMD=python $exec_target $spreadsheet_name $worksheet_name $row_info
+fi
 set +f
+
+if [ $debug = true ]; then
+    set +vx
+fi
 exit 0
 
 # Below are the previous weak-sauce attempts - pay no attention to them (other than as a monument to failure)
