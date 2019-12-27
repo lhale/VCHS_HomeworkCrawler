@@ -1,3 +1,5 @@
+(This file @ https://drive.google.com/drive/u/0/folders/0B7obCzqNDdg3dE5ZdmZzbXR0elU )
+
    VCHS_HomeworkCrawler project uses Selenium to automate the process of signing in to the
 vcs.learn student portal and walks through the student's courses to collect up the current
 homework assignments due for each class. The results are dumped to a CSV spreadsheet, outputted on
@@ -34,7 +36,7 @@ Caused by: java.lang.ClassNotFoundException: org.openqa.selenium.NoSuchElementEx
         
         To create an executable with Eclipse, do
         
-        right click VCHS_HomeworkCrawler->export->runnable jar file, export required libs radio button.
+        right click VCHS_HomeworkCrawler->export->runnable jar file, extract required libs into generated jar radio button.
         
         to run:
         java -cp VCHS_HomeworkCrawler.jar ChromeBrowser.VCHS_HomeworkCrawler3 all or list of classes

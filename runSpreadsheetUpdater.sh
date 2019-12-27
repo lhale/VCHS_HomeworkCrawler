@@ -14,7 +14,7 @@ fi
 
 if [ $1 != "python" ]
 then
-    echo "Is this a python call ?"
+    echo "Is this a python call ? ($1)"
     exit 1
 fi
 

@@ -68,7 +68,8 @@ import BrowserJavascript.JQueryLoader;
  *		6) Transform all println's into log4j (or equivalent) logging (either to console or log file)
  *		7) Convert this program into a web application, perhaps even integrate into VCHS's learn.vcs web infrastructure using its credential session.
  *			Also, all config.properties would become user preferences residing online
- *		8) A system installer that installs this application, JVM (if needed), Python 2.x (if needed) and the Google Spreadsheet Updater application.
+ *		8) Catch all top-level exceptions instead of barfing out the stack backtrace. Things like session resets, timeouts, etc to do a better wazzup for the user
+ *		9) A system installer that installs this application, JVM (if needed), Python 2.x (if needed) and the Google Spreadsheet Updater application.
  *			(This would be much easier if #6 above gets implemented)
  */
 
