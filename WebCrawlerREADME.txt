@@ -31,7 +31,7 @@ d) Walk back a few days to fully capture assignments due the next day or so
 e) Be aware of weekends, which don't have dates in the assignment schedules
 
 Description of prototype programs:
-NOTE: Design of this source code is rather single-file monolithic and as simple as possible. Further
+NOTE: Design of this main source code is rather single-file monolithic and as simple as possible. Further
 true software development enhancements would be to split the monoliths into fucntionally
 separate class files.
 
@@ -48,7 +48,7 @@ in the logic to handle all cases discovered. Program hardcoded to Tom's classes 
 
 VCHS_HomeworkCrawler3 - an extension of VCHS_HomeworkCrawler2 that uses Tom's Python-based filler
 program that updates a Google spreadsheet and makes use of a config file that contains all
-the sensitive credential information.
+the sensitive credential information. IOW - this is the most recent version.
 
 Other prototype programs:
 GoogleSpreadsheet1stTry - Multiple failed attempts to use the Google Drive v4 API to open
@@ -63,6 +63,17 @@ the same order as is needed by the fill_spreadsheet.py program. Since Java on Wi
 execute a DOS command via the system exec function, this adapter is straight-off called by it
 and duly maintains the arg ordering for the execution of the Python program. The magic of the
  adapter is done via the IFS mechanism.
+
+How to build:
+Your Eclipse IDE source project must be initially set up as a Java-natured project pulled down from GitHub.
+The pom.xml file serves as the mechanism for installing most of the dependent build libs so you
+must transition the project to a maven-based one (the Java nature is preserved, as well as pom.xml).
+Then, set up the project's build path (bin doesn't seem to work for the class dir - choose target/classes instead)
+and add the base of the class dir (not the subdirs). The first build installs all the selenium & etc
+jars into the local .m2/repo area. In the future, the version dependencies of these jars may change.
+(a unique strange problem occurred on Tom's laptop, where his Eclipse was missing the Java perspective.
+The remedy was to install a new version of Eclipse - there's no way to add or enable Java on the old one)
+
 
 How to test runSpreadsheetUpdater.sh + fill_spreadsheet.py (with getopts.py) combo using CMD:
 C:...\VCHS_HomeworkCrawler> C:\Applications\Git2_0\bin\bash.exe ./runSpreadsheetUpdater.sh python 
