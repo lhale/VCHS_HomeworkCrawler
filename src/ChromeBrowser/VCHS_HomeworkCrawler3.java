@@ -97,7 +97,8 @@ public class VCHS_HomeworkCrawler3 {
 	static String algebra2honors = "https://learn.vcs.net/mod/lesson/view.php?id=127440&startlastseen=yes";	// Long_month A/B -OR- Long_month XX (rarer) 
 	static String chemistryhonors = "https://learn.vcs.net/mod/lesson/view.php?id=124126&startlastseen=yes";	// Long_day, Long_month A/B (one or two digits)
 	static String bible = "https://learn.vcs.net/mod/lesson/view.php?id=102106&pageid=194834&startlastseen=yes";	// Mon A/B, 2017
-	
+	static String link_preamble = "https://learn.vcs.net/mod/lesson/view.php?id=";
+	static String link_postamble = "&startlastseen=yes";
 	static String google_jquery_script = "jQuery(function($) { " + " $('#lst-ib').val('bada-BANG'); " + " }); ";
 	static String google_js_script = "document.find'#lst-ib').val('bada-bing'); " + " }); ";
 	static String blank_slate_url = "https://www.google.com";
@@ -124,7 +125,7 @@ public class VCHS_HomeworkCrawler3 {
 	 */
 	public static void main(String[] args) 
 	{
-        Date curDate = new Date();
+        Date curDate = new Date();	// NOTE: A msecs long can be inserted here to spoof a time e.g. 1234567890999L
         Long curTime = curDate.getTime() / 1000;	// getTime returns milliseconds from epoch (1970)
         // Unfortunately, each teacher does not standardize on a date format, so...
 		SimpleDateFormat  formatter = new SimpleDateFormat("MMMM dd, yyyy");	// https://examples.javacodegeeks.com/core-java/text/java-simpledateformat-example/
@@ -219,7 +220,7 @@ public class VCHS_HomeworkCrawler3 {
 		// Courses tested: algebra chemistry history (some A/B dups need to be filtered out), english (redundant A/B day items), mandarin, 3D
 	    for (String course : args) {
 
-	    	String course_link = config_properties.getClass_links().get(course + "_link");
+	    	String course_link = link_preamble + config_properties.getClass_links().get(course + "_link") + link_postamble;
     		System.out.println(course + "@" + course_link + ':');
 			driver.navigate().to(course_link);
 /*	    	
@@ -325,7 +326,7 @@ public class VCHS_HomeworkCrawler3 {
 					</ol>
 				 */
 				// Sooo - it turns out that some homework sections are <h3> bounded while others are <p> bounded, so gotta check both
-				String [] tag_enclosures = new String [] {"h3", "p"};	// Courses like Mandarin, Chem & Algebra appear to use <p> now (sheesh)
+				String [] tag_enclosures = new String [] {"h3", "h4", "p"};	// Courses like Mandarin, Chem & Algebra appear to use <p> now (sheesh)
 				for ( String tag_name : tag_enclosures) {
 					List <WebElement> enclosure_tag_elements = driver.findElements(By.tagName(tag_name));
 					WebElement preface = null;	// Start each course's day item with no indents, which are used to highlight a homework preface (i.e. history below)
