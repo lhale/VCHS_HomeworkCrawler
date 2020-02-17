@@ -359,6 +359,13 @@ public class VCHS_HomeworkCrawler3 {
 												// Weird to have a <ul> not contain <li>'s, but it happens ...
 												System.out.println("False homework list - contents: " + possible_homework_list.getAttribute("innerHTML"));
 											}
+										} else if (possible_homework_list.getTagName().equals("p")) {	// Some teachers really messed up with creating an non-list (oh well)
+											try {
+												probable_homework_items.add(possible_homework_list);	// TODO - LDH - unsure if this works or has side effects
+											} catch (org.openqa.selenium.NoSuchElementException nsee) {
+												// Weird to have a <ul> not contain <li>'s, but it happens ...
+												System.out.println("False homework paragraph - contents: " + possible_homework_list.getAttribute("innerHTML"));
+											}
 										} else {
 											System.out.println("Homework section list - contents: " + possible_homework_list.getAttribute("innerHTML"));
 											continue;	// next sibling (hopefully ul)
